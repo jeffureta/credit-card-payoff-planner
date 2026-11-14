@@ -38,10 +38,20 @@ class BaseStatementParser(ABC):
         formats = [
             "%d %B %Y",
             "%d %b %Y",
+            "%d %B %y",
+            "%d %b %y",
             "%B %d, %Y",
             "%b %d, %Y",
+            "%B %d, %y",
+            "%b %d, %y",
+            "%B %d %Y",
+            "%b %d %Y",
+            "%B %d %y",
+            "%b %d %y",
             "%m/%d/%Y",
             "%d/%m/%Y",
+            "%d/%m/%y",
+            "%m/%d/%y",
             "%Y-%m-%d",
         ]
         for fmt in formats:

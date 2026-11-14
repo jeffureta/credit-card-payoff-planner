@@ -2,14 +2,19 @@
 from typing import List
 from credit_planner.parsers.base import BaseStatementParser
 from credit_planner.parsers.hsbc import HSBCParser
+from credit_planner.parsers.vanquis import VanquisParser
+from credit_planner.parsers.capital_one import CapitalOneParser
+from credit_planner.parsers.amex import AmexParser
 from credit_planner.parsers.generic import GenericFallbackParser
 
 
 class ParserRegistry:
     def __init__(self):
         self.parsers: List[BaseStatementParser] = [
+            CapitalOneParser(),
+            AmexParser(),
             HSBCParser(),
-            # Future parsers (Chase, Amex, etc.) can be registered here
+            VanquisParser(),
             GenericFallbackParser(),
         ]
 

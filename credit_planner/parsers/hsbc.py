@@ -35,34 +35,60 @@ class HSBCParser(BaseStatementParser):
         minimum_payment = self.clean_amount(min_match.group(1)) if min_match else 0.0
 
         # 3. Payment Due Date
+        # Matches: "Payment to be credited by 23 Nov 2026" or "Payment Due Date: ..."
         due_match = re.search(
-            r"Payment\s+Due\s+Date\s*[:]?\s*([\w\s,/-]+?)(?:\n|Account|$)",
+            r"(?:Payment\s+to\s+be\s+credited\s+by|Payment\s+Due\s+Date|Due\s+Date)\s*[:]?\s*([0-9]{1,2}\s+[A-Za-z]+\s+[0-9]{2,4}|\d{1,2}/\d{1,2}/\d{2,4})",
             text,
             re.IGNORECASE,
         )
-        due_date = self.parse_flexible_date(due_match.group(1)) if due_match else date.today()
+        if not due_match:
+            due_match = re.search(
+                r"Payment\s+Due\s+Date\s*[:]?\s*([\w\s,/-]+?)(?:\n|Account|$)",
+                text,
+                re.IGNORECASE,
+            )
+        due_date = self.parse_flexible_date(due_match.group(1).strip()) if due_match else date.today()
 
         # 4. Statement Date
+        # Matches: "Statement Date 29 October 2026"
         stmt_date_match = re.search(
-            r"(?:Statement\s+Date|Statement\s+Period|Date)\s*[:]?\s*([\w\s,/-]+?)(?:\n|Payment|to|$)",
+            r"(?:Statement\s+Date|Statement\s+Period|Date)\s*[:]?\s*([0-9]{1,2}\s+[A-Za-z]+\s+[0-9]{2,4}|\d{1,2}/\d{1,2}/\d{2,4})",
             text,
             re.IGNORECASE,
         )
+        if not stmt_date_match:
+            stmt_date_match = re.search(
+                r"(?:Statement\s+Date|Statement\s+Period|Date)\s*[:]?\s*([\w\s,/-]+?)(?:\n|Payment|to|$)",
+                text,
+                re.IGNORECASE,
+            )
         statement_date = (
-            self.parse_flexible_date(stmt_date_match.group(1)) if stmt_date_match else date.today()
+            self.parse_flexible_date(stmt_date_match.group(1).strip()) if stmt_date_match else date.today()
         )
 
         # 5. Purchase APR
+        # Matches: "APR 27.9%" or "Purchase Rate (APR): 24.99%"
         apr_match = re.search(
-            r"(?:Purchase\s+Rate\s*\(APR\)|Annual\s+Percentage\s+Rate\s*\(APR\)|Purchases:\s*Annual\s+Percentage\s+Rate\s*\(APR\)|Purchase\s+APR)\s*[:]?\s*([\d.]+)%",
+            r"(?:Purchase\s+Rate\s*\(APR\)|Annual\s+Percentage\s+Rate\s*\(APR\)|Purchases:\s*Annual\s+Percentage\s+Rate\s*\(APR\)|Purchase\s+APR|\bAPR)\s*[:]?\s*([\d.]+)%",
             text,
             re.IGNORECASE,
         )
         purchase_apr = float(apr_match.group(1)) if apr_match else 0.0
 
         # 6. Last 4 Digits
-        last4_match = re.search(r"(?:Account\s*(?:Number|Ending\s+In)?)\s*[:]?\s*(?:\*+\s*)*(\d{4})", text, re.IGNORECASE)
-        last4 = last4_match.group(1) if last4_match else "0000"
+        # Matches: "4546 3849 1365 6063" or "Account Number: ... 4321"
+        last4_match = re.search(
+            r"(?:Card\s+number|Bank\s+Giro\s+Credit)[^\n\d]*(?:\d{4}[\s*]+){3}(\d{4})",
+            text,
+            re.IGNORECASE,
+        )
+        if not last4_match:
+            last4_match = re.search(r"(?:Account\s*(?:Number|Ending\s+In)?)\s*[:]?\s*(?:\*+\s*)*(\d{4})", text, re.IGNORECASE)
+        if not last4_match:
+            seq_match = re.search(r"\b\d{4}\s+\d{4}\s+\d{4}\s+(\d{4})\b", text)
+            last4 = seq_match.group(1) if seq_match else "0000"
+        else:
+            last4 = last4_match.group(1)
 
         return StatementData(
             issuer="HSBC",

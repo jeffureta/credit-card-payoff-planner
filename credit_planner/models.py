@@ -59,3 +59,20 @@ class ProgressReport:
     expected_balance: float
     variance: float  # Positive = paid down more than expected (ahead)
     status: VarianceStatus
+
+
+CURRENCY_SYMBOLS = {
+    "USD": "$",
+    "GBP": "£",
+    "EUR": "€",
+    "PHP": "₱",
+    "HKD": "HK$",
+    "CAD": "CA$",
+    "AUD": "AU$",
+}
+
+
+def get_currency_symbol(currency_code: str) -> str:
+    """Returns the currency symbol for a standard currency code, defaulting to '$'."""
+    return CURRENCY_SYMBOLS.get((currency_code or "").upper(), "$")
+
