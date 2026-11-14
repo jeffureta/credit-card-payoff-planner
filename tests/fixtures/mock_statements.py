@@ -66,6 +66,31 @@ Minimum Payment: $50.00
 Annual Percentage Rate: 19.99% APR
 """
 
+SAMPLE_VANQUIS_UK_TEXT = """
+Vanquis Card, Customer Services,
+P.O. Box 399, CHATHAM ME4 4WQ
+Customer Service: 0330 099 3000
+Account Number: 4023 9999 8888 8950
+Statement Date: 20 October 2026
+
+YOUR CARD STATEMENT
+Jane Doe
+This month you should pay at least £187.22
+
+YOUR ACCOUNT SUMMARY
+This month's balance £4,436.78
+Your Credit Limit £4,400.00
+Available to spend £0.00
+This month's minimum payment £150.44
+This must reach your account by 16/11/26
+
+Your Interest Rates;
+CASH INTEREST 3.52% N/A
+PURCHASE INTEREST 2.30% N/A
+STANDARD RATE BALANCE TRANSFER INTEREST 2.30% N/A
+interest will be charged at the rate of 2.30% per month.
+"""
+
 SAMPLE_UNRECOGNIZED_NO_BALANCE = """
 Welcome to your quarterly newsletter!
 Here are our top credit tips for the winter season.

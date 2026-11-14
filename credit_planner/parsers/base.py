@@ -42,6 +42,8 @@ class BaseStatementParser(ABC):
             "%b %d, %Y",
             "%m/%d/%Y",
             "%d/%m/%Y",
+            "%d/%m/%y",
+            "%m/%d/%y",
             "%Y-%m-%d",
         ]
         for fmt in formats:

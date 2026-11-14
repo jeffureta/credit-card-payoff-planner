@@ -46,6 +46,13 @@ class IssuerDetector:
             r"quicksilver",
             r"venture\s*x",
         ],
+        "Vanquis": [
+            r"\bvanquis\b",
+            r"vanquis\s*bank",
+            r"vanquis\s*card",
+            r"vanquis\.co\.uk",
+            r"vanquis\.com",
+        ],
     }
 
     def detect(self, text: str) -> Tuple[str, float]:

@@ -10,7 +10,7 @@ from rich.panel import Panel
 from credit_planner.db import DatabaseManager
 from credit_planner.parsers.detector import IssuerDetector
 from credit_planner.parsers.registry import ParserRegistry
-from credit_planner.models import CardProfile, StatementData, PaymentTarget, VarianceStatus
+from credit_planner.models import CardProfile, StatementData, PaymentTarget, VarianceStatus, get_currency_symbol
 from credit_planner.calculator import amortize_card, solve_payment_for_target_months
 from credit_planner.strategies import DebtCardInput, simulate_multi_card_payoff
 from credit_planner.ai.assistant import AIAssistant
@@ -47,6 +47,8 @@ def cmd_parse(args, db: DatabaseManager):
     parser = registry.resolve_for_text(text)
     statement_data = parser.parse_text(text)
 
+    sym = get_currency_symbol(statement_data.currency)
+
     # Render summary table
     table = Table(title="Statement Summary", header_style="bold magenta")
     table.add_column("Field", style="dim")
@@ -56,8 +58,8 @@ def cmd_parse(args, db: DatabaseManager):
     table.add_row("Card Last 4", f"*{statement_data.account_last4}")
     table.add_row("Statement Date", str(statement_data.statement_date))
     table.add_row("Payment Due Date", str(statement_data.due_date))
-    table.add_row("Statement Balance", f"${statement_data.statement_balance:,.2f}")
-    table.add_row("Minimum Payment Due", f"${statement_data.minimum_payment:,.2f}")
+    table.add_row("Statement Balance", f"{sym}{statement_data.statement_balance:,.2f}")
+    table.add_row("Minimum Payment Due", f"{sym}{statement_data.minimum_payment:,.2f}")
     table.add_row("Purchase Rate (APR)", f"{statement_data.purchase_apr:.2f}%")
 
     console.print(table)
@@ -96,8 +98,9 @@ def cmd_cards(args, db: DatabaseManager):
         stmts = db.get_statements_for_card(c.id)
         if stmts:
             latest = stmts[0]
-            bal_str = f"${latest.statement_balance:,.2f}"
-            min_str = f"${latest.minimum_payment:,.2f}"
+            sym = get_currency_symbol(latest.currency)
+            bal_str = f"{sym}{latest.statement_balance:,.2f}"
+            min_str = f"{sym}{latest.minimum_payment:,.2f}"
             date_str = str(latest.statement_date)
             apr = latest.purchase_apr or c.current_apr
         else:

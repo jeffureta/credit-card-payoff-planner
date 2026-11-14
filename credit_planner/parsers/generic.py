@@ -19,7 +19,7 @@ class GenericFallbackParser(BaseStatementParser):
 
         # 1. Balance pattern
         balance_match = re.search(
-            r"(?:Current\s+Balance\s+Due|New\s+Balance|Statement\s+Balance|Total\s+Balance\s+Due|Amount\s+Due)\s*[:]?\s*([£$€₱]?[\d,]+\.\d{2})",
+            r"(?:Current\s+Balance\s+Due|New\s+Balance|Statement\s+Balance|Total\s+Balance\s+Due|Amount\s+Due|This\s+month's\s+balance)\s*[:=]?\s*([£$€₱]?[\d,]+\.\d{2})",
             text,
             re.IGNORECASE,
         )
@@ -27,7 +27,7 @@ class GenericFallbackParser(BaseStatementParser):
 
         # 2. Minimum Payment
         min_match = re.search(
-            r"Minimum\s+Payment(?:\s+Due)?\s*[:]?\s*([£$€₱]?[\d,]+\.\d{2})",
+            r"(?:This\s+month's\s+minimum\s+payment|Minimum\s+Payment(?:\s+Due)?)\s*[:]?\s*([£$€₱]?[\d,]+\.\d{2})",
             text,
             re.IGNORECASE,
         )
@@ -35,7 +35,7 @@ class GenericFallbackParser(BaseStatementParser):
 
         # 3. Payment Due Date
         due_match = re.search(
-            r"Payment\s+Due\s+Date\s*[:]?\s*([\w\s,/-]+?)(?:\n|Card|$)",
+            r"(?:Payment\s+Due\s+Date|reach\s+your\s+account\s+by)\s*[:]?\s*([\w\s,/-]+?)(?:\n|Card|$)",
             text,
             re.IGNORECASE,
         )
