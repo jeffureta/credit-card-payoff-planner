@@ -7,6 +7,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
+from typing import List, Tuple
 from credit_planner.db import DatabaseManager
 from credit_planner.parsers.detector import IssuerDetector
 from credit_planner.parsers.registry import ParserRegistry
@@ -16,6 +17,33 @@ from credit_planner.strategies import DebtCardInput, simulate_multi_card_payoff
 from credit_planner.ai.assistant import AIAssistant
 
 console = Console()
+
+
+def verify_statement_integrity(stmt: StatementData) -> Tuple[bool, List[str]]:
+    """Strictly verifies whether a parsed statement contains all valid required fields.
+    
+    100% verification condition:
+    - statement_balance > 0
+    - minimum_payment > 0
+    - valid account_last4 (length >= 4 and not '0000')
+    - valid statement_date and due_date
+    - issuer recognized (not 'Generic' or empty)
+    """
+    reasons = []
+    if stmt.statement_balance <= 0:
+        reasons.append("Statement balance must be greater than 0")
+    if stmt.minimum_payment <= 0:
+        reasons.append("Minimum payment must be greater than 0")
+    if not stmt.account_last4 or stmt.account_last4 == "0000":
+        reasons.append("Valid card account last 4 digits required")
+    if not stmt.statement_date:
+        reasons.append("Statement date is missing")
+    if not stmt.due_date:
+        reasons.append("Payment due date is missing")
+    if not stmt.issuer or stmt.issuer.lower() == "generic":
+        reasons.append("Card issuer could not be identified with certainty")
+
+    return len(reasons) == 0, reasons
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:
@@ -30,51 +58,145 @@ def extract_text_from_pdf(pdf_path: str) -> str:
         page_text = page.extract_text()
         if page_text:
             text += page_text + "\n"
+        # Also include any links or annotations if present
     return text
 
 
-def cmd_parse(args, db: DatabaseManager):
-    """Parses a statement PDF, displays extracted metrics, and saves to database."""
-    console.print(f"[bold cyan]🔍 Reading statement:[/bold cyan] {args.file}")
-    text = extract_text_from_pdf(args.file)
-
+def parse_single_pdf(pdf_path: str, db: DatabaseManager, no_save: bool = False) -> Tuple[StatementData, bool, List[str]]:
+    """Parses one PDF statement file and saves to DB if no_save is False."""
+    text = extract_text_from_pdf(pdf_path)
     detector = IssuerDetector()
     detected_issuer, confidence = detector.detect(text)
 
-    console.print(f"[bold green]✓ Issuer Detected:[/bold green] {detected_issuer} (Confidence: {confidence*100:.0f}%)")
-
     registry = ParserRegistry()
     parser = registry.resolve_for_text(text)
-    statement_data = parser.parse_text(text)
+    stmt_data = parser.parse_text(text)
+    if not stmt_data.issuer or stmt_data.issuer == "Generic":
+        if detected_issuer != "Generic":
+            stmt_data.issuer = detected_issuer
 
-    sym = get_currency_symbol(statement_data.currency)
+    is_valid, reasons = verify_statement_integrity(stmt_data)
 
-    # Render summary table
+    if not no_save:
+        card = CardProfile(
+            issuer=stmt_data.issuer,
+            card_name=f"{stmt_data.issuer} *{stmt_data.account_last4}",
+            last4=stmt_data.account_last4,
+            current_apr=stmt_data.purchase_apr,
+        )
+        card_id = db.add_card(card)
+        stmt_data.card_id = card_id
+        db.save_statement(stmt_data)
+
+    return stmt_data, is_valid, reasons
+
+
+def cmd_parse(args, db: DatabaseManager):
+    """Parses statement PDF(s) from a file or directory, saves to DB, and optionally safely cleans up."""
+    target_path = args.path
+
+    if not os.path.exists(target_path):
+        console.print(f"[bold red]Error: Path not found at {target_path}[/bold red]")
+        sys.exit(1)
+
+    if os.path.isdir(target_path):
+        files_to_process = sorted([
+            os.path.join(target_path, f)
+            for f in os.listdir(target_path)
+            if f.lower().endswith(".pdf")
+        ])
+        if not files_to_process:
+            console.print(f"[yellow]No PDF statements found in directory '{target_path}'.[/yellow]")
+            return
+        console.print(f"[bold cyan]📂 Found {len(files_to_process)} PDF statements in '{target_path}'. Batch parsing...[/bold cyan]\n")
+    else:
+        files_to_process = [target_path]
+
+    results = []
+
+    for file_path in files_to_process:
+        console.print(f"[bold cyan]🔍 Reading statement:[/bold cyan] {file_path}")
+        stmt, is_valid, reasons = parse_single_pdf(file_path, db, no_save=args.no_save)
+        sym = get_currency_symbol(stmt.currency)
+
+        results.append({
+            "path": file_path,
+            "filename": os.path.basename(file_path),
+            "stmt": stmt,
+            "is_valid": is_valid,
+            "reasons": reasons,
+            "sym": sym,
+        })
+
+    # Render summary table for all parsed files
     table = Table(title="Statement Summary", header_style="bold magenta")
-    table.add_column("Field", style="dim")
-    table.add_column("Extracted Value", style="bold green")
+    table.add_column("File", style="dim")
+    table.add_column("Issuer", style="bold")
+    table.add_column("Card", justify="center")
+    table.add_column("Statement Date", justify="center")
+    table.add_column("Due Date", justify="center")
+    table.add_column("Balance", justify="right", style="bold green")
+    table.add_column("Min Payment", justify="right")
+    table.add_column("APR", justify="right")
+    table.add_column("Verified", justify="center")
 
-    table.add_row("Issuer", statement_data.issuer or detected_issuer)
-    table.add_row("Card Last 4", f"*{statement_data.account_last4}")
-    table.add_row("Statement Date", str(statement_data.statement_date))
-    table.add_row("Payment Due Date", str(statement_data.due_date))
-    table.add_row("Statement Balance", f"{sym}{statement_data.statement_balance:,.2f}")
-    table.add_row("Minimum Payment Due", f"{sym}{statement_data.minimum_payment:,.2f}")
-    table.add_row("Purchase Rate (APR)", f"{statement_data.purchase_apr:.2f}%")
+    for r in results:
+        stmt = r["stmt"]
+        sym = r["sym"]
+        verified_str = "[bold green]✓ 100%[/bold green]" if r["is_valid"] else "[bold red]✗ Issues[/bold red]"
+        table.add_row(
+            r["filename"],
+            stmt.issuer,
+            f"*{stmt.account_last4}",
+            str(stmt.statement_date),
+            str(stmt.due_date),
+            f"{sym}{stmt.statement_balance:,.2f}",
+            f"{sym}{stmt.minimum_payment:,.2f}",
+            f"{stmt.purchase_apr:.2f}%",
+            verified_str,
+        )
 
     console.print(table)
 
-    if not args.no_save:
-        card = CardProfile(
-            issuer=statement_data.issuer or detected_issuer,
-            card_name=f"{statement_data.issuer or detected_issuer} *{statement_data.account_last4}",
-            last4=statement_data.account_last4,
-            current_apr=statement_data.purchase_apr,
-        )
-        card_id = db.add_card(card)
-        statement_data.card_id = card_id
-        db.save_statement(statement_data)
-        console.print(f"[bold green]✓ Saved to local database (Card ID: {card_id}).[/bold green]")
+    # Report verification issues if any
+    for r in results:
+        if not r["is_valid"]:
+            console.print(f"[bold yellow]⚠️  Verification notice for {r['filename']}:[/bold yellow] {', '.join(r['reasons'])}")
+
+    # Handle safe deletion if requested
+    if getattr(args, "delete_after_parse", False) or getattr(args, "cleanup", False):
+        eligible_for_deletion = [r for r in results if r["is_valid"] and not args.no_save]
+        ineligible = [r for r in results if not r["is_valid"] or args.no_save]
+
+        if not eligible_for_deletion:
+            console.print("\n[yellow]No statements met 100% verification criteria for safe deletion. All files retained.[/yellow]")
+            return
+
+        console.print(f"\n[bold yellow]🗑️  Safe Deletion Gate:[/bold yellow] {len(eligible_for_deletion)} statement(s) are 100% verified and saved in the database.")
+        if ineligible:
+            console.print(f"[yellow]Note: {len(ineligible)} file(s) did not meet 100% verification or were skipped and will NOT be deleted.[/yellow]")
+
+        do_delete = args.yes
+        if not do_delete:
+            try:
+                confirm = input("Are you sure you want to delete these parsed statement files from disk? (y/N): ").strip().lower()
+                do_delete = confirm in ("y", "yes")
+            except (KeyboardInterrupt, EOFError):
+                do_delete = False
+
+        if do_delete:
+            deleted_count = 0
+            for r in eligible_for_deletion:
+                try:
+                    os.remove(r["path"])
+                    deleted_count += 1
+                    console.print(f"  [red]Deleted:[/red] {r['path']}")
+                except OSError as e:
+                    console.print(f"  [red]Failed to delete {r['path']}: {e}[/red]")
+            console.print(f"[bold green]✓ Cleaned up {deleted_count} statement file(s).[/bold green]")
+        else:
+            console.print("[dim]Deletion cancelled by user. All statement files retained.[/dim]")
+
 
 
 def cmd_cards(args, db: DatabaseManager):
@@ -315,9 +437,11 @@ def main():
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # parse
-    p_parse = subparsers.add_parser("parse", help="Parse statement PDF")
-    p_parse.add_argument("file", help="Path to PDF statement")
+    p_parse = subparsers.add_parser("parse", help="Parse statement PDF file or directory of PDFs")
+    p_parse.add_argument("path", help="Path to PDF statement file or directory of statements")
     p_parse.add_argument("--no-save", action="store_true", help="Do not save to database")
+    p_parse.add_argument("--delete-after-parse", "--cleanup", action="store_true", dest="delete_after_parse", help="Safely delete statement files from disk only if 100% verified and saved")
+    p_parse.add_argument("-y", "--yes", action="store_true", help="Automatically confirm deletion without prompt")
 
     # cards
     subparsers.add_parser("cards", help="List credit cards")

@@ -10,6 +10,8 @@ from tests.fixtures.mock_statements import (
     SAMPLE_CHASE_GENERIC_TEXT,
     SAMPLE_GENERIC_CARD_TEXT,
     SAMPLE_VANQUIS_UK_TEXT,
+    SAMPLE_CAPITAL_ONE_UK_TEXT,
+    SAMPLE_AMEX_UK_TEXT,
     SAMPLE_UNRECOGNIZED_NO_BALANCE,
 )
 from credit_planner.parsers.base import BaseStatementParser
@@ -76,6 +78,62 @@ def test_parser_registry_auto_resolve():
     vanquis_parser = registry.resolve_for_text(SAMPLE_VANQUIS_UK_TEXT)
     from credit_planner.parsers.vanquis import VanquisParser
     assert isinstance(vanquis_parser, VanquisParser)
+
+    # Resolves Capital One
+    c1_parser = registry.resolve_for_text(SAMPLE_CAPITAL_ONE_UK_TEXT)
+    from credit_planner.parsers.capital_one import CapitalOneParser
+    assert isinstance(c1_parser, CapitalOneParser)
+
+    # Resolves Amex
+    amex_parser = registry.resolve_for_text(SAMPLE_AMEX_UK_TEXT)
+    from credit_planner.parsers.amex import AmexParser
+    assert isinstance(amex_parser, AmexParser)
+
+
+def test_capital_one_detection_not_misclassified_as_hsbc():
+    detector = IssuerDetector()
+    detected, conf = detector.detect(SAMPLE_CAPITAL_ONE_UK_TEXT)
+    assert detected == "Capital One"
+    assert conf >= 0.8
+
+
+def test_capital_one_parser_synthetic():
+    from credit_planner.parsers.capital_one import CapitalOneParser
+    parser = CapitalOneParser()
+    assert parser.confidence(SAMPLE_CAPITAL_ONE_UK_TEXT) >= 0.8
+
+    stmt = parser.parse_text(SAMPLE_CAPITAL_ONE_UK_TEXT)
+    assert stmt.issuer == "Capital One"
+    assert stmt.statement_balance == 2234.63
+    assert stmt.minimum_payment == 121.91
+    assert stmt.statement_date == date(2026, 11, 7)
+    assert stmt.due_date == date(2026, 12, 3)
+    assert stmt.purchase_apr == 30.34
+    assert stmt.account_last4 == "6067"
+    assert stmt.currency == "GBP"
+
+
+def test_amex_parser_synthetic():
+    from credit_planner.parsers.amex import AmexParser
+    parser = AmexParser()
+    assert parser.confidence(SAMPLE_AMEX_UK_TEXT) >= 0.8
+
+    stmt = parser.parse_text(SAMPLE_AMEX_UK_TEXT)
+    assert stmt.issuer == "American Express"
+    assert stmt.statement_balance == 1385.24
+    assert stmt.minimum_payment == 59.42
+    assert stmt.statement_date == date(2026, 10, 19)
+    assert stmt.due_date == date(2026, 11, 13)
+    assert stmt.purchase_apr == 33.20
+    assert stmt.account_last4 == "11009"
+    assert stmt.currency == "GBP"
+
+
+def test_parse_flexible_date_words_and_two_digit_years():
+    assert BaseStatementParser.parse_flexible_date("7 November 26") == date(2026, 11, 7)
+    assert BaseStatementParser.parse_flexible_date("03 Dec 26") == date(2026, 12, 3)
+    assert BaseStatementParser.parse_flexible_date("19/10/26") == date(2026, 10, 19)
+
 
 
 def test_vanquis_parser_synthetic():

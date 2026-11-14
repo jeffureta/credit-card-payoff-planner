@@ -96,3 +96,62 @@ Welcome to your quarterly newsletter!
 Here are our top credit tips for the winter season.
 No statement details enclosed.
 """
+
+SAMPLE_CAPITAL_ONE_UK_TEXT = """
+Statement date
+7 November 26
+Mr Jeff Vincent Ureta
+MasterCard Account No.
+**** **** **** 6067
+Page 1 of 2
+Your account summary
+Credit limit
+£2,300.00
+Available to spend as at 07/11/26
+£65.37
+Previous balance
+£2,059.38
+Payments received
+£112.61
+New transactions
+£287.86
+Your new balance
+£2,234.63
+Thank you, Capital One
+
+Your payment details
+This month's minimum payment is
+£121.91
+It's due on
+03 Dec 26
+
+Your interest rates
+This month's interest is based on the following simple annual rates:
+Standard Purchase:
+30.340%
+Standard Cash:
+30.340%
+Standard Balance Transfer:
+30.340%
+Next month's estimated interest will be £55.22.
+
+Payment slip
+HSBC Bank plc
+Head Office Collection Account
+Capital One
+Account Number
+**** **** **** 6067
+44-83-91 00483915
+"""
+
+SAMPLE_AMEX_UK_TEXT = """
+JEFF VINCENT URETA xxxx-xxxxxx- 11009 19 / 10 / 26
+£ 1,400.07 - £ 76.07 £ 61.24 £ £ 13 November 2026 1 of 5
+American Express Services Europe Ltd. Dept 871 1 John Street, Brighton BN88 1NH England
+Please send your minimum repayment of £ 59.42 by the due date shown.
+From 20 September to 19 October 2026
+Statement includes payments and charges received by 19 October 2026
+Previous Closing Balance New Credits New Debits Closing Balance Account Summary 1,385.24 59.42
+Minimum Repayment Payment Due Date Credit Limit £ Available Credit Limit £ Statement of Account
+Compound Annual Rate Simple Monthly Rate Goods And Services 33.2 % 2.42 % Cash Advance 36.3 % 2.62 %
+"""
