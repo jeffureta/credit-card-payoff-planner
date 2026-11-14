@@ -1,0 +1,75 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ==========================================
+# CRITICAL PRIVACY & FINANCIAL DATA GUARDS
+# Real bank statements & local databases MUST NEVER be committed to GitHub
+# ==========================================
+*.pdf
+*.PDF
+statements/
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+data/*.json
+data/exports/
+private/
+secrets/
+*.log
+
+# Allow synthetic mock test fixtures
+!tests/fixtures/*.py
+!tests/fixtures/mock_statements/

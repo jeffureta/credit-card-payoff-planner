@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "credit-planner"
+version = "0.1.0"
+description = "Privacy-preserving universal credit card statement parser, budget payoff planner, and local AI advisor."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "pypdf>=3.0.0",
+    "rich>=13.0.0",
+    "requests>=2.28.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pdfplumber>=0.10.0",
+]
+
+[project.scripts]
+credit-planner = "credit_planner.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
